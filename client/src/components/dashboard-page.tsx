@@ -1,18 +1,23 @@
 "use client"
 
 import { useState } from "react"
+import { useConnectModal } from '@rainbow-me/rainbowkit';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent } from "@/components/ui/card"
-import WalletConnect from "@/components/wallet-connect"
 import DashboardOverview from "@/components/dashboard-overview"
 import DepositCollateral from "@/components/deposit-collateral"
 import BorrowStablecoin from "@/components/borrow-stablecoin"
 import RepayLoan from "@/components/repay-loan"
 import WithdrawCollateral from "@/components/withdraw-collateral"
 import RiskBanner from "@/components/risk-banner"
+import { Button } from "@/components/ui/button"
+import { Wallet } from "lucide-react"
+import { useAccount } from 'wagmi'
 
 export default function DashboardPage() {
-  const [isConnected, setIsConnected] = useState(false)
+  const { openConnectModal } = useConnectModal()
+  const { isConnected, address } = useAccount();
+
   const [healthFactor, setHealthFactor] = useState(2.5)
   const [collateralValue, setCollateralValue] = useState(10000)
   const [borrowedAmount, setBorrowedAmount] = useState(3000)
@@ -24,7 +29,9 @@ export default function DashboardPage() {
 
   // Mock function to simulate wallet connection
   const handleConnect = () => {
-    setIsConnected(true)
+    if (!isConnected && openConnectModal) {
+      openConnectModal();
+    }
   }
 
   // Calculate borrow limit (75% of collateral value)
@@ -72,7 +79,10 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">
             DeFi Lending
           </h1>
-          <WalletConnect isConnected={isConnected} onConnect={handleConnect} />
+          <Button className="flex items-center gap-2 bg-black" onClick={handleConnect}>
+            <Wallet className="h-4 w-4" />
+            <span>Connect Wallet</span>
+          </Button>
         </div>
       </header>
 
@@ -80,7 +90,10 @@ export default function DashboardPage() {
         {!isConnected ? (
           <div className="flex flex-col items-center justify-center py-20">
             <h2 className="text-2xl font-semibold mb-6">Connect your wallet to get started</h2>
-            <WalletConnect isConnected={isConnected} onConnect={handleConnect} />
+            <Button className="flex items-center gap-2 bg-black" onClick={handleConnect}>
+              <Wallet className="h-4 w-4" />
+              <span>Connect Wallet</span>
+            </Button>
           </div>
         ) : (
           <>
