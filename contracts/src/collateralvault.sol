@@ -1,31 +1,54 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "chainlink-brownie-contracts/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "@redstone-finance/evm-connector/contracts/data-services/MainDemoConsumerBase.sol";
 
 interface IMintableERC20 is IERC20 {
     function mint(address to, uint256 amount) external;
     function burn(uint256 amount) external;
 }
 
-contract CollateralVault is Ownable {
+interface IRedstoneOracle {
+    function getPrice(bytes32 symbol) external view returns (uint256);
+    function getPrice(
+        bytes32 symbol,
+        uint256 timeout
+    ) external view returns (uint256);
+}
+
+contract CollateralVault is Ownable, MainDemoConsumerBase {
     using SafeERC20 for IERC20;
 
     struct Vault {
-        mapping(address => uint256) collateralBalances; // Token address => amount
+        mapping(address => uint256) collateralBalances;
         uint256 borrowedAmount;
         bool exists;
     }
 
+    struct OracleConfig {
+        address chainlinkAggregator;
+        uint256 maxPriceAge;
+        bool useRedstoneFallback;
+    }
+
     mapping(address => Vault) public vaults;
     mapping(address => bool) public acceptedCollateralTokens;
+    mapping(address => OracleConfig) public tokenOracles;
     uint256 public collateralRatio = 150; // 150%
     uint256 public constant RATIO_DIVISOR = 100;
 
     IMintableERC20 public immutable stablecoin;
 
+    event OracleConfigured(
+        address indexed token,
+        address aggregator,
+        uint256 maxAge
+    );
     event VaultCreated(address indexed user);
     event CollateralDeposited(
         address indexed user,
@@ -43,11 +66,10 @@ contract CollateralVault is Ownable {
     event CollateralTokenAdded(address indexed token);
     event CollateralTokenRemoved(address indexed token);
 
-    constructor(address _stablecoin) Ownable(msg.sender) {
+    constructor(address _stablecoin) {
         stablecoin = IMintableERC20(_stablecoin);
     }
 
-    // CRUD Operations
     function createVault() external {
         require(!vaults[msg.sender].exists, "Vault exists");
         vaults[msg.sender].exists = true;
@@ -77,7 +99,6 @@ contract CollateralVault is Ownable {
             "Insufficient collateral"
         );
 
-        // Check collateral ratio after withdrawal
         uint256 totalCollateralValue = calculateTotalCollateralValue(
             msg.sender
         );
@@ -138,7 +159,6 @@ contract CollateralVault is Ownable {
         require(vault.exists, "Vault doesn't exist");
         require(vault.borrowedAmount == 0, "Outstanding debt");
 
-        // Check all collateral balances are zero
         uint256 totalCollateral;
         for (uint256 i = 0; i < getAcceptedTokensCount(); i++) {
             address token = getAcceptedTokenAtIndex(i);
@@ -150,22 +170,41 @@ contract CollateralVault is Ownable {
         emit VaultDeleted(msg.sender);
     }
 
-    // Admin functions
     function addCollateralToken(address token) external onlyOwner {
         require(!acceptedCollateralTokens[token], "Token already accepted");
-        _addCollateralToken(token); // Call internal implementation
+        _addCollateralToken(token);
         emit CollateralTokenAdded(token);
     }
 
     function removeCollateralToken(address token) external onlyOwner {
         require(acceptedCollateralTokens[token], "Token not accepted");
-        _removeCollateralToken(token); // Call internal implementation
+        _removeCollateralToken(token);
         emit CollateralTokenRemoved(token);
     }
 
     function setCollateralRatio(uint256 newRatio) external onlyOwner {
         require(newRatio >= 100, "Ratio too low");
         collateralRatio = newRatio;
+    }
+
+    function getCollateralValueInUSD(
+        address token,
+        uint256 amount
+    ) public view returns (uint256) {
+        require(acceptedCollateralTokens[token], "Unaccepted collateral");
+
+        OracleConfig memory config = tokenOracles[token];
+        uint256 chainlinkValue = _getChainlinkPrice(token, amount, config);
+
+        if (chainlinkValue > 0) {
+            return chainlinkValue;
+        }
+
+        if (config.useRedstoneFallback) {
+            return _getRedstonePrice(token, amount);
+        }
+
+        revert("Price unavailable");
     }
 
     // View functions
@@ -239,5 +278,80 @@ contract CollateralVault is Ownable {
                 }
             }
         }
+    }
+
+    function _getChainlinkPrice(
+        address token,
+        uint256 amount,
+        OracleConfig memory config
+    ) private view returns (uint256) {
+        if (config.chainlinkAggregator == address(0)) return 0;
+
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(
+            config.chainlinkAggregator
+        );
+        (
+            uint80 roundId,
+            int256 price,
+            uint256 startedAt,
+            uint256 updatedAt,
+            uint80 answeredInRound
+        ) = priceFeed.latestRoundData();
+
+        require(price > 0, "Invalid price");
+        require(
+            block.timestamp - updatedAt <= config.maxPriceAge,
+            "Stale price"
+        );
+        require(answeredInRound >= roundId, "Stale round");
+
+        uint8 decimals = priceFeed.decimals();
+        uint8 tokenDecimals = IERC20Metadata(token).decimals();
+
+        // First multiply amount by price to get the total value
+        uint256 totalValue = amount * uint256(price);
+
+        return
+            (totalValue / (10 ** decimals) / (10 ** tokenDecimals)) *
+            (10 ** 18);
+    }
+
+    // Add this mapping at contract level
+    mapping(address => bytes32) public tokenSymbols;
+
+    // Add a function to set token symbols
+    function setTokenSymbol(address token, bytes32 symbol) external onlyOwner {
+        tokenSymbols[token] = symbol;
+    }
+
+    // Modify _getRedstonePrice to use the mapping
+    function _getRedstonePrice(
+        address token,
+        uint256 amount
+    ) private view returns (uint256) {
+        bytes32 symbol = tokenSymbols[token];
+        require(symbol != bytes32(0), "Symbol not configured");
+
+        // Get price using RedStone's Core Model
+        uint256 price = getOracleNumericValueFromTxMsg(symbol);
+        require(price > 0, "Invalid Redstone price");
+
+        // Adjust for token decimals
+        uint8 tokenDecimals = IERC20Metadata(token).decimals();
+        return (amount * price) / (10 ** tokenDecimals);
+    }
+
+    function configureOracle(
+        address token,
+        address chainlinkAggregator,
+        uint256 maxPriceAge,
+        bool useRedstoneFallback
+    ) external onlyOwner {
+        tokenOracles[token] = OracleConfig({
+            chainlinkAggregator: chainlinkAggregator,
+            maxPriceAge: maxPriceAge,
+            useRedstoneFallback: useRedstoneFallback
+        });
+        emit OracleConfigured(token, chainlinkAggregator, maxPriceAge);
     }
 }

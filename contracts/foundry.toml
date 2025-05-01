@@ -4,6 +4,9 @@ out = "out"
 libs = ["lib"]
 
 remappings = [
-    "@openzeppelin/=lib/openzeppelin-contracts/"
+    "@openzeppelin/=lib/openzeppelin-contracts/",
+    "chainlink/=lib/chainlink-brownie-contracts/contracts/src/",
+    "@redstone-finance/evm-connector/=lib/redstone-oracles-monorepo/packages/evm-connector/"
 ]
+fs_permissions = [{ access = "read", path = "lib/chainlink-brownie-contracts/contracts/src"}]
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

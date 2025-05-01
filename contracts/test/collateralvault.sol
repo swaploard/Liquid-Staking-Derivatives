@@ -38,8 +38,15 @@ contract MockERC20 is IERC20 {
         return true;
     }
 
-    function transferFrom(address from, address to, uint256 amount) public returns (bool) {
-        require(allowance[from][msg.sender] >= amount, "Insufficient allowance");
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) public returns (bool) {
+        require(
+            allowance[from][msg.sender] >= amount,
+            "Insufficient allowance"
+        );
         allowance[from][msg.sender] -= amount;
         balanceOf[from] -= amount;
         balanceOf[to] += amount;
@@ -50,7 +57,10 @@ contract MockERC20 is IERC20 {
 contract MockMintableERC20 is MockERC20, IMintableERC20 {
     constructor() MockERC20("Stablecoin", "STBL") {}
 
-    function mint(address to, uint256 amount) public override(MockERC20, IMintableERC20) {
+    function mint(
+        address to,
+        uint256 amount
+    ) public override(MockERC20, IMintableERC20) {
         super.mint(to, amount);
     }
 
@@ -68,7 +78,7 @@ contract CollateralVaultTest is Test {
     address token3 = address(3);
 
     function setUp() public {
-        vm.startPrank(owner);  // Start acting as owner before contract deployment
+        vm.startPrank(owner); // Start acting as owner before contract deployment
         stablecoin = new MockMintableERC20();
         lsdToken = new MockERC20("LSD Token", "LSD");
         vault = new CollateralVault(address(stablecoin));
@@ -84,7 +94,7 @@ contract CollateralVaultTest is Test {
     function testCreateVault() public {
         vm.prank(user);
         vault.createVault();
-        
+
         (, bool exists) = vault.vaults(user);
         assertTrue(exists);
     }
@@ -93,11 +103,11 @@ contract CollateralVaultTest is Test {
         vm.startPrank(user);
         vault.createVault();
         vault.depositCollateral(address(lsdToken), 100 ether);
-        
+
         // Withdraw all collateral
         vault.withdrawCollateral(address(lsdToken), 100 ether);
         vault.deleteVault();
-        
+
         (, bool exists) = vault.vaults(user);
         assertFalse(exists);
         vm.stopPrank();
@@ -115,7 +125,7 @@ contract CollateralVaultTest is Test {
         vm.startPrank(user);
         vault.createVault();
         vault.depositCollateral(address(lsdToken), 100 ether);
-        
+
         uint256 balance = vault.getCollateralBalance(user, address(lsdToken));
         assertEq(balance, 100 ether);
         vm.stopPrank();
@@ -126,7 +136,7 @@ contract CollateralVaultTest is Test {
         vault.createVault();
         vault.depositCollateral(address(lsdToken), 100 ether);
         vault.withdrawCollateral(address(lsdToken), 50 ether);
-        
+
         uint256 balance = vault.getCollateralBalance(user, address(lsdToken));
         assertEq(balance, 50 ether);
         assertEq(lsdToken.balanceOf(user), 950 ether);
@@ -137,18 +147,18 @@ contract CollateralVaultTest is Test {
         vm.startPrank(user);
         vault.createVault();
         vault.depositCollateral(address(lsdToken), 150 ether);
-        
+
         // Borrow maximum
         uint256 maxBorrow = vault.calculateMaxBorrowable(user);
         vault.borrowStablecoin(maxBorrow);
-        
+
         assertEq(stablecoin.balanceOf(user), maxBorrow);
         assertEq(vault.getBorrowedAmount(user), maxBorrow);
-        
+
         // Repay
         stablecoin.approve(address(vault), maxBorrow);
         vault.repay(maxBorrow);
-        
+
         assertEq(vault.getBorrowedAmount(user), 0);
         vm.stopPrank();
     }
@@ -158,7 +168,7 @@ contract CollateralVaultTest is Test {
         vault.createVault();
         vault.depositCollateral(address(lsdToken), 150 ether);
         vault.borrowStablecoin(100 ether);
-        
+
         // Try to withdraw too much
         vm.expectRevert("Insufficient collateral ratio");
         vault.withdrawCollateral(address(lsdToken), 50 ether);
@@ -196,7 +206,7 @@ contract CollateralVaultTest is Test {
         vm.startPrank(user);
         vault.createVault();
         vault.depositCollateral(address(lsdToken), 100 ether);
-        
+
         uint256 collateralValue = vault.calculateTotalCollateralValue(user);
         assertEq(collateralValue, 100 ether);
         vm.stopPrank();
@@ -206,9 +216,98 @@ contract CollateralVaultTest is Test {
         vm.startPrank(user);
         vault.createVault();
         vault.depositCollateral(address(lsdToken), 150 ether);
-        
+
         uint256 maxBorrow = vault.calculateMaxBorrowable(user);
         assertEq(maxBorrow, (150 ether * 100) / 150); // 100 ether
         vm.stopPrank();
+    }
+
+    function testConfigureOracle() public {
+        address mockChainlinkAggregator = address(4);
+        uint256 maxPriceAge = 3600; // 1 hour
+
+        vm.prank(owner);
+        vault.configureOracle(address(lsdToken), mockChainlinkAggregator, maxPriceAge, true);
+
+        (address configuredAggregator, uint256 configuredMaxAge, bool usesFallback) = vault.tokenOracles(address(lsdToken));
+        assertEq(configuredAggregator, mockChainlinkAggregator);
+        assertEq(configuredMaxAge, maxPriceAge);
+        assertTrue(usesFallback);
+    }
+
+    function testNonOwnerCannotConfigureOracle() public {
+        vm.prank(user);
+        vm.expectRevert();
+        vault.configureOracle(address(lsdToken), address(4), 3600, true);
+    }
+
+    function testGetChainlinkPrice() public {
+        // Setup mock Chainlink aggregator with 8 decimals and $1.00 price
+        MockV3Aggregator mockAggregator = new MockV3Aggregator(8, 100000000); // $1.00 with 8 decimals
+        
+        vm.prank(owner);
+        vault.configureOracle(address(lsdToken), address(mockAggregator), 3600, false);
+
+        uint256 amount = 1 ether; // 1 token with 18 decimals
+
+        vm.prank(user);
+        uint256 price = vault.getCollateralValueInUSD(address(lsdToken), amount);
+        console.log("Price getCollateralValueInUSD: ", price);
+        // For 1 token at $1.00:
+        // amount = 1e18 (18 decimals)
+        // chainlink price = 1e8 (8 decimals)
+        // Expected result should be 1e18 (normalized to 18 decimals)
+        assertEq(price, 1 ether);
+    }
+
+    function testChainlinkPriceStaleness() public {
+        MockV3Aggregator mockAggregator = new MockV3Aggregator(8, 100000000);
+        
+        vm.prank(owner);
+        vault.configureOracle(address(lsdToken), address(mockAggregator), 3600, false);
+
+        // Warp time forward past the maxPriceAge
+        vm.warp(block.timestamp + 3601);
+
+        vm.prank(user);
+        vm.expectRevert("Stale price");
+        vault.getCollateralValueInUSD(address(lsdToken), 1 ether);
+    }
+}
+
+// Mock Chainlink Aggregator for testing
+contract MockV3Aggregator {
+    uint8 public decimals;
+    int256 public latestAnswer;
+    uint256 public latestTimestamp;
+    uint80 public latestRound;
+
+    constructor(uint8 _decimals, int256 _initialAnswer) {
+        decimals = _decimals;
+        latestAnswer = _initialAnswer;
+        latestTimestamp = block.timestamp;
+        latestRound = 1;
+    }
+
+    function latestRoundData() external view returns (
+        uint80 roundId,
+        int256 answer,
+        uint256 startedAt,
+        uint256 updatedAt,
+        uint80 answeredInRound
+    ) {
+        return (
+            latestRound,
+            latestAnswer,
+            block.timestamp,
+            latestTimestamp,
+            latestRound
+        );
+    }
+
+    function updateAnswer(int256 _answer) external {
+        latestAnswer = _answer;
+        latestTimestamp = block.timestamp;
+        latestRound++;
     }
 }
