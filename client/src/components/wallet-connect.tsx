@@ -38,17 +38,14 @@ export default function WalletConnect({ isConnected, onConnect }: WalletConnectP
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="flex items-center gap-2">
-          <Wallet className="h-4 w-4" />
-          <span>Connect Wallet</span>
-        </Button>
+
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Connect your wallet</DialogTitle>
           <DialogDescription>Connect your wallet to access the DeFi lending platform.</DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
+        {/* <div className="grid gap-4 py-4">
           <Button onClick={handleConnect} className="flex items-center justify-between w-full" variant="outline">
             <span>MetaMask</span>
             <img src="/placeholder.svg?height=24&width=24" alt="MetaMask" className="h-6 w-6" />
@@ -61,7 +58,7 @@ export default function WalletConnect({ isConnected, onConnect }: WalletConnectP
             <span>Coinbase Wallet</span>
             <img src="/placeholder.svg?height=24&width=24" alt="Coinbase Wallet" className="h-6 w-6" />
           </Button>
-        </div>
+        </div> */}
       </DialogContent>
     </Dialog>
   )

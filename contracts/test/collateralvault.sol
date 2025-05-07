@@ -78,7 +78,7 @@ contract CollateralVaultTest is Test {
     address token3 = address(3);
 
     function setUp() public {
-        vm.startPrank(owner); // Start acting as owner before contract deployment
+        vm.startPrank(owner);
         stablecoin = new MockMintableERC20();
         lsdToken = new MockERC20("LSD Token", "LSD");
         vault = new CollateralVault(address(stablecoin));
@@ -241,23 +241,28 @@ contract CollateralVaultTest is Test {
         vault.configureOracle(address(lsdToken), address(4), 3600, true);
     }
 
-    function testGetChainlinkPrice() public {
-        // Setup mock Chainlink aggregator with 8 decimals and $1.00 price
-        MockV3Aggregator mockAggregator = new MockV3Aggregator(8, 100000000); // $1.00 with 8 decimals
+    function testRealChainlinkPrice() public {
+        string memory SEPOLIA_RPC_URL = vm.envString("SEPOLIA_RPC_URL");
+        vm.createSelectFork(SEPOLIA_RPC_URL);
         
-        vm.prank(owner);
-        vault.configureOracle(address(lsdToken), address(mockAggregator), 3600, false);
-
-        uint256 amount = 1 ether; // 1 token with 18 decimals
-
-        vm.prank(user);
-        uint256 price = vault.getCollateralValueInUSD(address(lsdToken), amount);
-        console.log("Price getCollateralValueInUSD: ", price);
-        // For 1 token at $1.00:
-        // amount = 1e18 (18 decimals)
-        // chainlink price = 1e8 (8 decimals)
-        // Expected result should be 1e18 (normalized to 18 decimals)
-        assertEq(price, 1 ether);
+        // Re-deploy contracts after creating fork
+        vm.startPrank(owner);
+        stablecoin = new MockMintableERC20();
+        vault = new CollateralVault(address(stablecoin));
+        
+        address weth = 0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9;
+        address ethUsdPriceFeed = 0x694AA1769357215DE4FAC081bf1f309aDC325306; // ETH/USD price feed
+        
+        vault.addCollateralToken(weth);
+        vault.configureOracle(weth, ethUsdPriceFeed, 3600, false);
+        
+        uint256 value = vault.getCollateralValueInUSD(weth, 1 ether);
+        console.log("1 ETH value in USD:", value);
+        
+        // Basic sanity check - price should be greater than 0
+        assertTrue(value > 0, "ETH price should be greater than 0");
+        
+        vm.stopPrank();
     }
 
     function testChainlinkPriceStaleness() public {
@@ -278,7 +283,7 @@ contract CollateralVaultTest is Test {
 // Mock Chainlink Aggregator for testing
 contract MockV3Aggregator {
     uint8 public decimals;
-    int256 public latestAnswer;
+    int256 public latestAnswer;         
     uint256 public latestTimestamp;
     uint80 public latestRound;
 

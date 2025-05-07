@@ -39,9 +39,14 @@ contract CollateralVault is Ownable, MainDemoConsumerBase {
     mapping(address => Vault) public vaults;
     mapping(address => bool) public acceptedCollateralTokens;
     mapping(address => OracleConfig) public tokenOracles;
+    mapping(address => bytes32) public tokenSymbols;
     uint256 public collateralRatio = 150; // 150%
+    uint256 public liquidationThreshold = 120;
+    uint256 public liquidationBonus = 10;
+    uint256 public constant MAX_LIQUIDATION_BONUS = 20;
+    uint256 public constant PRICE_IMPACT_PERCENTAGE = 2;
     uint256 public constant RATIO_DIVISOR = 100;
-
+    address[] public acceptedTokensList;
     IMintableERC20 public immutable stablecoin;
 
     event OracleConfigured(
@@ -59,6 +64,14 @@ contract CollateralVault is Ownable, MainDemoConsumerBase {
         address indexed user,
         address indexed token,
         uint256 amount
+    );
+    event VaultLiquidated(
+        address indexed user,
+        address indexed liquidator,
+        address indexed token,
+        uint256 debtRepaid,
+        uint256 collateralLiquidated,
+        uint256 bonus
     );
     event StablecoinBorrowed(address indexed user, uint256 amount);
     event StablecoinRepaid(address indexed user, uint256 amount);
@@ -222,8 +235,6 @@ contract CollateralVault is Ownable, MainDemoConsumerBase {
     function calculateTotalCollateralValue(
         address user
     ) public view returns (uint256) {
-        // In a real implementation, you would use price oracles to get token values
-        // For simplicity, we assume 1:1 value here
         uint256 total;
         for (uint256 i = 0; i < getAcceptedTokensCount(); i++) {
             address token = getAcceptedTokenAtIndex(i);
@@ -243,9 +254,88 @@ contract CollateralVault is Ownable, MainDemoConsumerBase {
                 ? maxBorrow - vaults[user].borrowedAmount
                 : 0;
     }
+    // returns the ratio of collateral value to borrowed amount
+    // Health factor below liquidationThreshold (120%) makes the position eligible for liquidation
+    function calculateHealthFactor(address user) public view returns (uint256) {
+        Vault storage vault = vaults[user];
+        if (vault.borrowedAmount == 0) return type(uint256).max;
 
-    // Helper functions for iterating through accepted tokens
-    address[] public acceptedTokensList;
+        uint256 totalCollateralValueInUSD = 0;
+        for (uint256 i = 0; i < getAcceptedTokensCount(); i++) {
+            address token = getAcceptedTokenAtIndex(i);
+            uint256 collateralAmount = vault.collateralBalances[token];
+            if (collateralAmount > 0) {
+                totalCollateralValueInUSD += getCollateralValueInUSD(
+                    token,
+                    collateralAmount
+                );
+            }
+        }
+
+        return
+            (totalCollateralValueInUSD * RATIO_DIVISOR) / vault.borrowedAmount;
+    }
+     // Liquidators repay some portion of the user's debt\
+     // receive collateral plus a bonus (default 10%)
+    function liquidate(
+        address user,
+        address token,
+        uint256 debtToRepay
+    ) external {
+        require(user != msg.sender, "Cannot liquidate own position");
+
+        Vault storage vault = vaults[user];
+        require(vault.exists, "Vault doesn't exist");
+        require(debtToRepay > 0, "Invalid debt amount");
+        require(debtToRepay <= vault.borrowedAmount, "Exceeds user debt");
+
+        uint256 healthFactor = calculateHealthFactor(user);
+        require(
+            healthFactor < liquidationThreshold,
+            "Position not liquidatable"
+        );
+
+        uint256 tokenCollateralAmount = vault.collateralBalances[token];
+        require(tokenCollateralAmount > 0, "No collateral available");
+
+        uint256 collateralValueInUSD = getCollateralValueInUSD(
+            token,
+            tokenCollateralAmount
+        );
+        uint256 baseCollateralToLiquidate = (debtToRepay *
+            (RATIO_DIVISOR + liquidationBonus)) / RATIO_DIVISOR;
+
+        uint256 priceImpact = (baseCollateralToLiquidate *
+            PRICE_IMPACT_PERCENTAGE) / RATIO_DIVISOR;
+        uint256 totalCollateralToLiquidate = baseCollateralToLiquidate +
+            priceImpact;
+
+        require(
+            totalCollateralToLiquidate <= tokenCollateralAmount,
+            "Insufficient collateral"
+        );
+
+        IERC20(address(stablecoin)).safeTransferFrom(
+            msg.sender,
+            address(this),
+            debtToRepay
+        );
+        stablecoin.burn(debtToRepay);
+
+        vault.borrowedAmount -= debtToRepay;
+        vault.collateralBalances[token] -= totalCollateralToLiquidate;
+
+        IERC20(token).safeTransfer(msg.sender, totalCollateralToLiquidate);
+
+        emit VaultLiquidated(
+            user,
+            msg.sender,
+            token,
+            debtToRepay,
+            totalCollateralToLiquidate,
+            liquidationBonus
+        );
+    }
 
     function getAcceptedTokensCount() public view returns (uint256) {
         return acceptedTokensList.length;
@@ -258,7 +348,7 @@ contract CollateralVault is Ownable, MainDemoConsumerBase {
         return acceptedTokensList[index];
     }
 
-    function _addCollateralToken(address token) internal {
+    function _addCollateralToken(address token) internal {  
         if (!acceptedCollateralTokens[token]) {
             acceptedCollateralTokens[token] = true;
             acceptedTokensList.push(token);
@@ -308,7 +398,6 @@ contract CollateralVault is Ownable, MainDemoConsumerBase {
         uint8 decimals = priceFeed.decimals();
         uint8 tokenDecimals = IERC20Metadata(token).decimals();
 
-        // First multiply amount by price to get the total value
         uint256 totalValue = amount * uint256(price);
 
         return
@@ -316,15 +405,25 @@ contract CollateralVault is Ownable, MainDemoConsumerBase {
             (10 ** 18);
     }
 
-    // Add this mapping at contract level
-    mapping(address => bytes32) public tokenSymbols;
-
-    // Add a function to set token symbols
     function setTokenSymbol(address token, bytes32 symbol) external onlyOwner {
         tokenSymbols[token] = symbol;
     }
 
-    // Modify _getRedstonePrice to use the mapping
+    function setLiquidationParameters(
+        uint256 newLiquidationThreshold,
+        uint256 newLiquidationBonus
+    ) external onlyOwner {
+        require(
+            newLiquidationThreshold < collateralRatio,
+            "Threshold must be below collateral ratio"
+        );
+        require(newLiquidationThreshold >= 100, "Threshold too low");
+        require(newLiquidationBonus <= MAX_LIQUIDATION_BONUS, "Bonus too high");
+
+        liquidationThreshold = newLiquidationThreshold;
+        liquidationBonus = newLiquidationBonus;
+    }
+
     function _getRedstonePrice(
         address token,
         uint256 amount
@@ -332,11 +431,9 @@ contract CollateralVault is Ownable, MainDemoConsumerBase {
         bytes32 symbol = tokenSymbols[token];
         require(symbol != bytes32(0), "Symbol not configured");
 
-        // Get price using RedStone's Core Model
         uint256 price = getOracleNumericValueFromTxMsg(symbol);
         require(price > 0, "Invalid Redstone price");
 
-        // Adjust for token decimals
         uint8 tokenDecimals = IERC20Metadata(token).decimals();
         return (amount * price) / (10 ** tokenDecimals);
     }

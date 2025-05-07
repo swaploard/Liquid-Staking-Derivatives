@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { ArrowUpRight, Wallet, Coins, Activity } from "lucide-react"
 import HealthFactorIndicator from "@/components/health-factor-indicator"
+import {useOverview} from "./hooks"
 
 interface DashboardOverviewProps {
   collateralBalances: {
@@ -24,7 +25,7 @@ export default function DashboardOverview({
 }: DashboardOverviewProps) {
   // Calculate utilization percentage
   const utilizationPercentage = borrowLimit > 0 ? (borrowedAmount / borrowLimit) * 100 : 0
-
+  const { bETHConllateral, rETHConllateral, stETHConllateral } = useOverview()
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
       <Card>
@@ -37,15 +38,15 @@ export default function DashboardOverview({
           <div className="text-xs text-muted-foreground mt-1">
             <div className="flex items-center justify-between mt-2">
               <span>stETH</span>
-              <span>{collateralBalances.stETH.toFixed(4)}</span>
+              <span>{stETHConllateral ? Number(bETHConllateral).toFixed(4): 0}</span>
             </div>
             <div className="flex items-center justify-between mt-1">
               <span>rETH</span>
-              <span>{collateralBalances.rETH.toFixed(4)}</span>
+              <span>{rETHConllateral ? Number(bETHConllateral).toFixed(4): 0}</span>
             </div>
             <div className="flex items-center justify-between mt-1">
               <span>bETH</span>
-              <span>{collateralBalances.bETH.toFixed(4)}</span>
+              <span>{bETHConllateral ? Number(bETHConllateral).toFixed(4): 0}</span>
             </div>
           </div>
         </CardContent>
