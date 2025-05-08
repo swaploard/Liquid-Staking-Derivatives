@@ -275,8 +275,8 @@ contract CollateralVault is Ownable, MainDemoConsumerBase {
         return
             (totalCollateralValueInUSD * RATIO_DIVISOR) / vault.borrowedAmount;
     }
-     // Liquidators repay some portion of the user's debt\
-     // receive collateral plus a bonus (default 10%)
+    // Liquidators repay some portion of the user's debt\
+    // receive collateral plus a bonus (default 10%)
     function liquidate(
         address user,
         address token,
@@ -348,7 +348,7 @@ contract CollateralVault is Ownable, MainDemoConsumerBase {
         return acceptedTokensList[index];
     }
 
-    function _addCollateralToken(address token) internal {  
+    function _addCollateralToken(address token) internal {
         if (!acceptedCollateralTokens[token]) {
             acceptedCollateralTokens[token] = true;
             acceptedTokensList.push(token);
@@ -397,12 +397,9 @@ contract CollateralVault is Ownable, MainDemoConsumerBase {
 
         uint8 decimals = priceFeed.decimals();
         uint8 tokenDecimals = IERC20Metadata(token).decimals();
-
         uint256 totalValue = amount * uint256(price);
-
-        return
-            (totalValue / (10 ** decimals) / (10 ** tokenDecimals)) *
-            (10 ** 18);
+        uint256 normalizedPrice = totalValue / (10 ** decimals);
+        return normalizedPrice / 1e18;
     }
 
     function setTokenSymbol(address token, bytes32 symbol) external onlyOwner {
