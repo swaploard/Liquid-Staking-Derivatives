@@ -1,48 +1,74 @@
 "use client"
 
 import { useState } from "react"
+import CollateralVault from "@/contracts/CollateralVault.json";
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import Stepper from "@/components/stepper"
 import { ArrowRight } from "lucide-react"
+import { Address, parseEther } from "viem";
+import { useReadContract, useAccount } from "wagmi";
+import { Step, StepStatus } from "@/types";
+import { useDepositCollateral } from "./hook";
 
-interface DepositCollateralProps {
-  onDeposit: (token: string, amount: number) => void
-}
+const bETHAddress = process.env.NEXT_PUBLIC_MOCK_BETH_ADDRESS
+const stETHAddress = process.env.NEXT_PUBLIC_MOCK_STETH_ADDRESS
+const rETHAddress = process.env.NEXT_PUBLIC_MOCK_RETH_ADDRESS
+const vaultContract = process.env.NEXT_PUBLIC_VAULT_CONTRACT_ADDRESS
 
-export default function DepositCollateral({ onDeposit }: DepositCollateralProps) {
-  const [token, setToken] = useState("stETH")
+const depositSteps: Step[] = [
+  {
+    title: 'Go to your wallet to approve this transaction',
+    description: 'A blockchain transaction is required to deposite.',
+    status: 'pending' as const,
+  },
+  {
+    title: 'Deposit your collateral',
+    description: 'Please stay on this page and keep this browser tab open.',
+    status: 'pending' as const,
+  },
+]
+
+export default function DepositCollateral() {
+  const [token, setToken] = useState({ token: "", address: "" })
+  const { chainId } = useAccount()
   const [amount, setAmount] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [showStepper, setShowStepper] = useState(false);
+  const [steps, setSteps] = useState<Step[]>(depositSteps);
+  const { depositCollateral } = useDepositCollateral({setSteps, setShowStepper, setIsLoading});
+  const { data: tokenUSDValue } = useReadContract({
+    address: vaultContract as Address,
+    abi: CollateralVault.abi,
+    functionName: "getCollateralValueInUSD",
+    args: [token.address, parseEther(amount)],
+    chainId: chainId
+  })
 
-  const handleDeposit = () => {
+  const handleDeposit = async() => {
     if (!amount || Number.parseFloat(amount) <= 0) return
-
-    setIsLoading(true)
-
-    // Simulate transaction delay
-    setTimeout(() => {
-      onDeposit(token, Number.parseFloat(amount))
-      setAmount("")
-      setIsLoading(false)
-    }, 1500)
+    await depositCollateral(token.address as Address, parseEther(amount))
+    setAmount("")
+    setToken({ token: "", address: "" })
   }
 
-  const getTokenPrice = () => {
-    switch (token) {
+  const handleTokenChange = (value: string) => {
+    let address = ""
+    switch (value) {
       case "stETH":
-        return 2000
+        address = String(stETHAddress)
+        break
       case "rETH":
-        return 2200
+        address = String(rETHAddress)
+        break
       case "bETH":
-        return 1900
-      default:
-        return 2000
+        address = String(bETHAddress)
+        break
     }
+    setToken({ token: value, address })
   }
-
-  const usdValue = amount ? Number.parseFloat(amount) * getTokenPrice() : 0
 
   return (
     <div className="space-y-6">
@@ -50,11 +76,11 @@ export default function DepositCollateral({ onDeposit }: DepositCollateralProps)
         <h3 className="text-lg font-medium">Deposit Collateral</h3>
         <p className="text-sm text-muted-foreground">Deposit your LSD tokens as collateral to borrow stablecoins.</p>
       </div>
-
+      {showStepper && <Stepper steps={steps}/>}
       <div className="grid gap-4">
         <div className="grid gap-2">
           <Label htmlFor="token">Select Token</Label>
-          <Select value={token} onValueChange={setToken}>
+          <Select value={token.token} onValueChange={handleTokenChange}>
             <SelectTrigger id="token">
               <SelectValue placeholder="Select token" />
             </SelectTrigger>
@@ -80,11 +106,11 @@ export default function DepositCollateral({ onDeposit }: DepositCollateralProps)
               min="0"
             />
             <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-sm text-muted-foreground">
-              {token}
+              {token.token}
             </div>
           </div>
           <div className="text-sm text-muted-foreground flex justify-between">
-            <span>≈ ${usdValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+            <span>≈ ${tokenUSDValue?.toString() || '0'}</span>
             <button className="text-blue-600 hover:text-blue-700 text-xs" onClick={() => setAmount("1.0")}>
               MAX
             </button>
@@ -108,7 +134,7 @@ export default function DepositCollateral({ onDeposit }: DepositCollateralProps)
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <span>Deposit {token}</span>
+              <span>Deposit {""}</span>
               <ArrowRight className="h-4 w-4" />
             </div>
           )}

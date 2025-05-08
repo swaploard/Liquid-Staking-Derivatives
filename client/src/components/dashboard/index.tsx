@@ -101,7 +101,6 @@ export default function DashboardPage() {
 
             <DashboardOverview
               collateralBalances={collateralBalances}
-              collateralValue={collateralValue}
               borrowLimit={borrowLimit}
               borrowedAmount={borrowedAmount}
               healthFactor={healthFactor}
@@ -118,14 +117,7 @@ export default function DashboardPage() {
               <TabsContent value="deposit">
                 <Card>
                   <CardContent className="pt-6">
-                    <DepositCollateral
-                      onDeposit={(token, amount) => {
-                        updateCollateralValue(
-                          collateralValue + amount * (token === "stETH" ? 2000 : token === "rETH" ? 2200 : 1900),
-                        )
-                        updateCollateralBalance(token, amount, true)
-                      }}
-                    />
+                    <DepositCollateral/>
                   </CardContent>
                 </Card>
               </TabsContent>

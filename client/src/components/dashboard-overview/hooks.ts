@@ -1,11 +1,11 @@
 import { useReadContract, useAccount } from "wagmi";
 import CollateralVault from "@/contracts/CollateralVault.json";
-import { Address } from "viem";
+import { Address, formatEther } from "viem";
 
 const vaultContract = process.env.NEXT_PUBLIC_VAULT_CONTRACT_ADDRESS
-const stETHAddress = process.env.NEXT_PUBLIC_MOCK_RETH_ADDRESS
-const rETHAddress = process.env.NEXT_PUBLIC_MOCK_BETH_ADDRESS
-const bETHAddress = process.env.NEXT_PUBLIC_MOCK_STETH_ADDRESS
+const rETHAddress = process.env.NEXT_PUBLIC_MOCK_RETH_ADDRESS
+const bETHAddress = process.env.NEXT_PUBLIC_MOCK_BETH_ADDRESS
+const stETHAddress = process.env.NEXT_PUBLIC_MOCK_STETH_ADDRESS
 
 export const useOverview = () => {
     const { address: userAddress, chainId } = useAccount();
@@ -32,15 +32,18 @@ export const useOverview = () => {
         functionName: "getCollateralBalance",
         args: [userAddress, bETHAddress],
         chainId: chainId,
-    })
+    }) 
 
-    console.log("stETHConllateral", stETHConllateral)
-    console.log("rETHConllateral", rETHConllateral)
-    console.log("bETHConllateral", bETHConllateral)
+    const formattenSTETH = stETHConllateral && formatEther(BigInt(stETHConllateral?.toString()))
+    const formattenRETH = rETHConllateral && formatEther(BigInt(rETHConllateral?.toString()))
+    const formattenBETH = bETHConllateral && formatEther(BigInt(bETHConllateral?.toString()))
+    
+    const total = Number(formattenSTETH || 0) + Number(formattenRETH || 0) + Number(formattenBETH || 0)
   
     return {
-        stETHConllateral,
-        rETHConllateral,
-        bETHConllateral,
+        formattenSTETH,
+        formattenRETH,
+        formattenBETH,
+        total
     }
 }
