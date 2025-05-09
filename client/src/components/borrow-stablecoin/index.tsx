@@ -1,24 +1,40 @@
 "use client"
 
 import { useState } from "react"
+import { parseEther } from "viem";
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import Stepper from "@/components/stepper"
 import { ArrowDown } from "lucide-react"
 import HealthFactorIndicator from "@/components/health-factor-indicator"
 
+import { useBorrowStablecoin } from "./hooks"
+import { Step } from "@/types"
+
 interface BorrowStablecoinProps {
   borrowLimit: number
-  borrowedAmount: number
   healthFactor: number
   onBorrow: (amount: number) => void
 }
 
+const borowingSteps: Step[] = [
+  {
+    title: 'Go to your wallet to approve this transaction',
+    description: 'A blockchain transaction is required to deposite.',
+    status: 'pending' as const,
+  },
+  {
+    title: 'Borrowing stabelcoin',
+    description: 'Please stay on this page and keep this browser tab open.',
+    status: 'pending' as const,
+  },
+]
+
 export default function BorrowStablecoin({
   borrowLimit,
-  borrowedAmount,
   healthFactor,
   onBorrow,
 }: BorrowStablecoinProps) {
@@ -26,16 +42,21 @@ export default function BorrowStablecoin({
   const [amount, setAmount] = useState("")
   const [sliderValue, setSliderValue] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
+  const [showStepper, setShowStepper] = useState(false);
+  const [steps, setSteps] = useState<Step[]>(borowingSteps);
 
-  const availableToBorrow = borrowLimit - borrowedAmount
-  const borrowPercentage = borrowLimit > 0 ? (borrowedAmount / borrowLimit) * 100 : 0
+  const { handleBorrowing, BorrowableLimitUSD, formattenBorrowedAmount } = useBorrowStablecoin({setSteps, setShowStepper, setIsLoading})
+
+  const borrowedAmount = formattenBorrowedAmount;
+  const borrowPercentage = Number(BorrowableLimitUSD) > 0 ? (borrowedAmount / Number(BorrowableLimitUSD)) * 100 : 0
 
   // Calculate new health factor based on borrow amount
   const calculateNewHealthFactor = (additionalBorrow: number) => {
-    if (borrowLimit === 0) return 10
+    if (BorrowableLimitUSD === 0) return 10
     const totalBorrowed = borrowedAmount + additionalBorrow
     if (totalBorrowed === 0) return 10
-    return (borrowLimit / totalBorrowed) * 1.5
+    console.log(Number(BorrowableLimitUSD), totalBorrowed)
+    return (Number(BorrowableLimitUSD) / totalBorrowed) * 1.5
   }
 
   const newHealthFactor = calculateNewHealthFactor(Number.parseFloat(amount) || 0)
@@ -47,7 +68,7 @@ export default function BorrowStablecoin({
     if (percentage === 0) {
       setAmount("")
     } else {
-      const amountValue = (availableToBorrow * (percentage / 100)).toFixed(2)
+      const amountValue = (Number(BorrowableLimitUSD) * (percentage / 100)).toFixed(2)
       setAmount(amountValue)
     }
   }
@@ -58,22 +79,16 @@ export default function BorrowStablecoin({
     if (!value || Number.parseFloat(value) <= 0) {
       setSliderValue(0)
     } else {
-      const percentage = Math.min(100, (Number.parseFloat(value) / availableToBorrow) * 100)
+      const percentage = Math.min(100, (Number.parseFloat(value) / Number(BorrowableLimitUSD)) * 100)
       setSliderValue(percentage)
     }
   }
 
   const handleBorrow = () => {
     if (!amount || Number.parseFloat(amount) <= 0) return
-
-    setIsLoading(true)
-
-    // Simulate transaction delay
+    handleBorrowing(Number(amount))
     setTimeout(() => {
-      onBorrow(Number.parseFloat(amount))
-      setAmount("")
       setSliderValue(0)
-      setIsLoading(false)
     }, 1500)
   }
 
@@ -83,7 +98,7 @@ export default function BorrowStablecoin({
         <h3 className="text-lg font-medium">Borrow Stablecoins</h3>
         <p className="text-sm text-muted-foreground">Borrow stablecoins against your deposited collateral.</p>
       </div>
-
+      {showStepper && <Stepper steps={steps}/>}
       <div className="grid gap-4">
         <div className="grid gap-2">
           <Label htmlFor="borrow-token">Select Token</Label>
@@ -101,7 +116,7 @@ export default function BorrowStablecoin({
         <div className="grid gap-2">
           <div className="flex justify-between">
             <Label htmlFor="borrow-amount">Amount</Label>
-            <span className="text-sm text-muted-foreground">Available: ${availableToBorrow.toLocaleString()}</span>
+            <span className="text-sm text-muted-foreground">Available: ${Number(BorrowableLimitUSD)}</span>
           </div>
           <div className="relative">
             <Input
@@ -113,7 +128,7 @@ export default function BorrowStablecoin({
               className="pr-20"
               step="0.01"
               min="0"
-              max={availableToBorrow.toString()}
+              max={Number(BorrowableLimitUSD)}
             />
             <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-sm text-muted-foreground">
               {token}
@@ -122,7 +137,7 @@ export default function BorrowStablecoin({
           <div className="text-right">
             <button
               className="text-blue-600 hover:text-blue-700 text-xs"
-              onClick={() => handleAmountChange(availableToBorrow.toFixed(2))}
+              onClick={() => handleAmountChange(Number(BorrowableLimitUSD).toFixed(2))}
             >
               MAX
             </button>
@@ -156,7 +171,7 @@ export default function BorrowStablecoin({
           disabled={
             !amount ||
             Number.parseFloat(amount) <= 0 ||
-            Number.parseFloat(amount) > availableToBorrow ||
+            Number.parseFloat(amount) > Number(BorrowableLimitUSD) ||
             isLoading ||
             newHealthFactor < 1.05
           }
@@ -180,3 +195,5 @@ export default function BorrowStablecoin({
     </div>
   )
 }
+
+

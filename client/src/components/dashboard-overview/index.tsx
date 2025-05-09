@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { ArrowUpRight, Wallet, Coins, Activity } from "lucide-react"
 import HealthFactorIndicator from "@/components/health-factor-indicator"
-import { useOverview } from "./hooks"
+import { useCollateralOverview, useBorrowOverview } from "./hooks"
 
 interface DashboardOverviewProps {
   collateralBalances: {
@@ -16,13 +16,12 @@ interface DashboardOverviewProps {
 }
 
 export default function DashboardOverview({
-  borrowLimit,
   borrowedAmount,
   healthFactor,
 }: DashboardOverviewProps) {
-  // Calculate utilization percentage
-  const utilizationPercentage = borrowLimit > 0 ? (borrowedAmount / borrowLimit) * 100 : 0
-  const { formattenSTETH, formattenRETH, formattenBETH, total} = useOverview()
+  const { formattenSTETH, formattenRETH, formattenBETH, total} = useCollateralOverview()
+  const { formattenBorrowableLimit, borrowedPercentage, formattenBorrowedAmount } = useBorrowOverview()
+
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
       <Card>
@@ -55,14 +54,14 @@ export default function DashboardOverview({
           <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">${borrowLimit.toLocaleString()}</div>
+          <div className="text-2xl font-bold">${formattenBorrowableLimit}</div>
           <div className="text-xs text-muted-foreground mt-1">75% of your collateral value</div>
           <div className="mt-4">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs">Used: {utilizationPercentage.toFixed(0)}%</span>
-              <span className="text-xs">${borrowedAmount.toLocaleString()}</span>
+              <span className="text-xs">Used: {borrowedPercentage.toFixed(0)}%</span>
+              <span className="text-xs">${formattenBorrowedAmount}</span>
             </div>
-            <Progress value={utilizationPercentage} className="h-2" />
+            <Progress value={borrowedPercentage} className="h-2" />
           </div>
         </CardContent>
       </Card>

@@ -10,7 +10,7 @@ import Stepper from "@/components/stepper"
 import { ArrowRight } from "lucide-react"
 import { Address, parseEther } from "viem";
 import { useReadContract, useAccount } from "wagmi";
-import { Step, StepStatus } from "@/types";
+import { Step } from "@/types";
 import { useDepositCollateral } from "./hook";
 
 const bETHAddress = process.env.NEXT_PUBLIC_MOCK_BETH_ADDRESS

@@ -76,7 +76,7 @@ export default function DashboardPage() {
   const handleCreateVault = async () => {
     await createVault()
   }
-  console.log("DashboardPage", vaultExist)
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       <header className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 sticky top-0 z-10">
@@ -127,7 +127,6 @@ export default function DashboardPage() {
                   <CardContent className="pt-6">
                     <BorrowStablecoin
                       borrowLimit={borrowLimit}
-                      borrowedAmount={borrowedAmount}
                       healthFactor={healthFactor}
                       onBorrow={(amount) => {
                         updateHealthFactor(borrowedAmount + amount)
