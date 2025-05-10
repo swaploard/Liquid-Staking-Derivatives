@@ -4,23 +4,9 @@ import { ArrowUpRight, Wallet, Coins, Activity } from "lucide-react"
 import HealthFactorIndicator from "@/components/health-factor-indicator"
 import { useCollateralOverview, useBorrowOverview } from "./hooks"
 
-interface DashboardOverviewProps {
-  collateralBalances: {
-    stETH: number
-    rETH: number
-    bETH: number
-  }
-  borrowLimit: number
-  borrowedAmount: number
-  healthFactor: number
-}
-
-export default function DashboardOverview({
-  borrowedAmount,
-  healthFactor,
-}: DashboardOverviewProps) {
+export default function DashboardOverview() {
   const { formattenSTETH, formattenRETH, formattenBETH, total} = useCollateralOverview()
-  const { formattenBorrowableLimit, borrowedPercentage, formattenBorrowedAmount } = useBorrowOverview()
+  const { formattenBorrowableLimit, borrowedPercentage, borrowedAmount, helthFactor } = useBorrowOverview()
 
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -59,7 +45,7 @@ export default function DashboardOverview({
           <div className="mt-4">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs">Used: {borrowedPercentage.toFixed(0)}%</span>
-              <span className="text-xs">${formattenBorrowedAmount}</span>
+              <span className="text-xs">${String(borrowedAmount)}</span>
             </div>
             <Progress value={borrowedPercentage} className="h-2" />
           </div>
@@ -72,15 +58,15 @@ export default function DashboardOverview({
           <Coins className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">${borrowedAmount.toLocaleString()}</div>
+          <div className="text-2xl font-bold">${String(borrowedAmount)}</div>
           <div className="text-xs text-muted-foreground mt-1">
             <div className="flex items-center justify-between mt-2">
               <span>DAI</span>
-              <span>{(borrowedAmount * 0.6).toLocaleString()}</span>
+              <span>{0}</span>
             </div>
             <div className="flex items-center justify-between mt-1">
               <span>USDC</span>
-              <span>{(borrowedAmount * 0.4).toLocaleString()}</span>
+              <span>{String(borrowedAmount)}</span>
             </div>
           </div>
         </CardContent>
@@ -93,13 +79,13 @@ export default function DashboardOverview({
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold flex items-center gap-2">
-            {healthFactor.toFixed(2)}
-            <HealthFactorIndicator healthFactor={healthFactor} />
+            {Number(helthFactor).toFixed(2)}
+            <HealthFactorIndicator healthFactor={Number(helthFactor)} />
           </div>
           <div className="text-xs text-muted-foreground mt-1">
-            {healthFactor < 1 ? (
+            {Number(helthFactor) < 1 ? (
               <span className="text-red-500">Liquidation risk!</span>
-            ) : healthFactor < 1.2 ? (
+            ) : Number(helthFactor) < 1.2 ? (
               <span className="text-amber-500">Near liquidation threshold</span>
             ) : (
               <span>Safe position</span>

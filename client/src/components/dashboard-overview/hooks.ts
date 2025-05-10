@@ -99,23 +99,24 @@ export const useBorrowOverview = () => {
         chainId: chainId
     })
 
-    const { data: borrowedAmountInEth } = useReadContract({
+
+    const { data: helthFactor } = useReadContract({
         address: vaultContract as Address,
         abi: CollateralVault.abi,
-        functionName: "getCollateralValueInUSD",
-        args: [stETHAddress, borrowedAmount],
+        functionName: "calculateHealthFactor",
+        args: [userAddress],
         chainId: chainId
     })
 
-    const formattenBorrowableLimit = Number(bETHToUSD)
-    const formattenBorrowedAmount = Number(borrowedAmountInEth);
-    const borrowedPercentage = (Number(formattenBorrowedAmount) / formattenBorrowableLimit) * 100
+    const formattenBorrowableLimit = Number(bETHToUSD) - Number(borrowedAmount)
+    const borrowedPercentage = (Number(borrowedAmount) / formattenBorrowableLimit) * 100
 
     
     typeof formattenBorrowableLimit === "number" ? (formattenBorrowableLimit % 1 === 0 ? formattenBorrowableLimit.toFixed(0) : formattenBorrowableLimit.toFixed(4)) : 0
     return {
         formattenBorrowableLimit,
-        formattenBorrowedAmount,
-        borrowedPercentage
+        borrowedAmount,
+        borrowedPercentage,
+        helthFactor
     }
 }

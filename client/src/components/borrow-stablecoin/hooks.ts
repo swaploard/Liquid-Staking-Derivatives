@@ -61,8 +61,6 @@ export const useBorrowStablecoin = ({ setSteps, setShowStepper, setIsLoading }: 
 
     
     const handleBorrowing = async (amount: number) => {
-        const amountInWei = await usdToWei(amount)
-        console.log("amountInWei", amountInWei)
         updateStepStatus(0, "current")
         setShowStepper(true)
         setIsLoading(true)
@@ -70,7 +68,7 @@ export const useBorrowStablecoin = ({ setSteps, setShowStepper, setIsLoading }: 
             address: vaultContract as Address,
             abi: CollateralVault.abi,
             functionName: "borrowStablecoin",
-            args: [amountInWei],
+            args: [amount],
             chainId: chainId
         },{
             onSuccess: async (txHash) => {
