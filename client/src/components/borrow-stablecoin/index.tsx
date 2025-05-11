@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Stepper from "@/components/stepper"
 import { ArrowDown } from "lucide-react"
 import HealthFactorIndicator from "@/components/health-factor-indicator"
-
+import { vaultStore } from "@/store/valutStore"
 import { useBorrowStablecoin } from "./hooks"
 import { Step } from "@/types"
 
@@ -34,7 +34,7 @@ export default function BorrowStablecoin() {
   const [isLoading, setIsLoading] = useState(false)
   const [showStepper, setShowStepper] = useState(false);
   const [steps, setSteps] = useState<Step[]>(borowingSteps);
-
+  const { collateralData } = vaultStore()
   const { handleBorrowing, BorrowableLimitUSD, formattenBorrowedAmount } = useBorrowStablecoin({setSteps, setShowStepper, setIsLoading})
 
   const borrowedAmount = formattenBorrowedAmount;
@@ -42,11 +42,10 @@ export default function BorrowStablecoin() {
 
   // Calculate new health factor based on borrow amount
   const calculateNewHealthFactor = (additionalBorrow: number) => {
-    if (BorrowableLimitUSD === 0) return 10
+    if (collateralData.total === 0) return 10
     const totalBorrowed = borrowedAmount + additionalBorrow
     if (totalBorrowed === 0) return 10
-    console.log(Number(BorrowableLimitUSD), totalBorrowed)
-    return (Number(BorrowableLimitUSD) / totalBorrowed) * 1.5
+    return (Number(collateralData.total) * 100) / totalBorrowed
   }
 
   const newHealthFactor = calculateNewHealthFactor(Number.parseFloat(amount) || 0)
@@ -106,7 +105,7 @@ export default function BorrowStablecoin() {
         <div className="grid gap-2">
           <div className="flex justify-between">
             <Label htmlFor="borrow-amount">Amount</Label>
-            <span className="text-sm text-muted-foreground">Available: ${Number(BorrowableLimitUSD)}</span>
+            <span className="text-sm text-muted-foreground">Available: ${Number(BorrowableLimitUSD) - Number(borrowedAmount)}</span>
           </div>
           <div className="relative">
             <Input
@@ -163,7 +162,7 @@ export default function BorrowStablecoin() {
             Number.parseFloat(amount) <= 0 ||
             Number.parseFloat(amount) > Number(BorrowableLimitUSD) ||
             isLoading ||
-            newHealthFactor < 1.05
+            newHealthFactor < 120
           }
           className="w-full"
         >
@@ -172,7 +171,7 @@ export default function BorrowStablecoin() {
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
               <span>Borrowing...</span>
             </div>
-          ) : newHealthFactor < 1.05 ? (
+          ) : newHealthFactor < 120 ? (
             <span>Health Factor Too Low</span>
           ) : (
             <div className="flex items-center gap-2">

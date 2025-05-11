@@ -52,8 +52,7 @@ export const useBorrowStablecoin = ({ setSteps, setShowStepper, setIsLoading }: 
 
     useEffect(() => {
         if (borrowedAmount) {
-            const borrowedAmountInEth = formatEther(borrowedAmount as bigint)
-            const borrowedAmountInNumber = Number(borrowedAmountInEth)
+            const borrowedAmountInNumber = Number(borrowedAmount)
             setFormattenBorrowedAmount(borrowedAmountInNumber)
         }
     }, [borrowedAmount])
@@ -96,6 +95,7 @@ export const useBorrowStablecoin = ({ setSteps, setShowStepper, setIsLoading }: 
     return {
         handleBorrowing,
         BorrowableLimitUSD,
-        formattenBorrowedAmount
+        formattenBorrowedAmount,
+        borrowedAmount
     }
 }
