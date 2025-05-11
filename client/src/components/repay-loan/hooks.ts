@@ -3,20 +3,20 @@ import CollateralVault from "@/contracts/CollateralVault.json";
 import { Address, formatEther } from "viem";
 import { Step, StepStatus } from "@/types";
 import { useEffect, useState } from "react";
+
 const vaultContract = process.env.NEXT_PUBLIC_VAULT_CONTRACT_ADDRESS
 const stETHAddress = process.env.NEXT_PUBLIC_MOCK_STETH_ADDRESS
 
-interface useBorrowStablecoinProps {
+interface useRepayStableCoinProps {
     setSteps: React.Dispatch<React.SetStateAction<Step[]>>
     setShowStepper: React.Dispatch<React.SetStateAction<boolean>>
     setIsLoading: React.Dispatch<React.SetStateAction<boolean>>
 }
 
-export const useBorrowStablecoin = ({ setSteps, setShowStepper, setIsLoading }: useBorrowStablecoinProps) => {
+export const useRepayStableCoin = ({ setSteps, setShowStepper, setIsLoading }: useRepayStableCoinProps) => {
     const { writeContract } = useWriteContract()
     const publicClient = usePublicClient()
-    const { chainId, address: userAddress } = useAccount();
-    const [formattenBorrowedAmount, setFormattenBorrowedAmount] = useState<number>(0)
+    const { chainId, address: userAddress } = useAccount()
 
     const updateStepStatus = (stepIndex: number, newStatus: StepStatus) => {
         setSteps((prev) =>
@@ -25,51 +25,18 @@ export const useBorrowStablecoin = ({ setSteps, setShowStepper, setIsLoading }: 
             )
         );
     };
-    
-    const { data: BorrowableLimit } = useReadContract({
-        address: vaultContract as Address,
-        abi: CollateralVault.abi,
-        functionName: "calculateMaxBorrowable",
-        args: [userAddress],
-        chainId: chainId,
-    })
 
-    const { data: BorrowableLimitUSD } = useReadContract({
-        address: vaultContract as Address,
-        abi: CollateralVault.abi,
-        functionName: "getCollateralValueInUSD",
-        args: [stETHAddress, BorrowableLimit],
-        chainId: chainId
-    })
-
-    const { data: borrowedAmount } = useReadContract({
-        address: vaultContract as Address,
-        abi: CollateralVault.abi,
-        functionName: "getBorrowedAmount",
-        args: [userAddress],
-        chainId: chainId
-    })
-
-    useEffect(() => {
-        if (borrowedAmount) {
-            const borrowedAmountInEth = formatEther(borrowedAmount as bigint)
-            const borrowedAmountInNumber = Number(borrowedAmountInEth)
-            setFormattenBorrowedAmount(borrowedAmountInNumber)
-        }
-    }, [borrowedAmount])
-
-    
-    const handleBorrowing = async (amount: number) => {
+    const handleRepayAmount = (amount: number) => {
         updateStepStatus(0, "current")
         setShowStepper(true)
         setIsLoading(true)
         writeContract({
             address: vaultContract as Address,
             abi: CollateralVault.abi,
-            functionName: "borrowStablecoin",
+            functionName: "repay",
             args: [amount],
             chainId: chainId
-        },{
+        }, {
             onSuccess: async (txHash) => {
                 updateStepStatus(0, "completed")
                 updateStepStatus(1, "current")
@@ -92,10 +59,8 @@ export const useBorrowStablecoin = ({ setSteps, setShowStepper, setIsLoading }: 
             }
         })
     }
-   
+
     return {
-        handleBorrowing,
-        BorrowableLimitUSD,
-        formattenBorrowedAmount
+        handleRepayAmount
     }
 }

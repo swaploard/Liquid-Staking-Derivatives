@@ -14,12 +14,6 @@ import HealthFactorIndicator from "@/components/health-factor-indicator"
 import { useBorrowStablecoin } from "./hooks"
 import { Step } from "@/types"
 
-interface BorrowStablecoinProps {
-  borrowLimit: number
-  healthFactor: number
-  onBorrow: (amount: number) => void
-}
-
 const borowingSteps: Step[] = [
   {
     title: 'Go to your wallet to approve this transaction',
@@ -33,11 +27,7 @@ const borowingSteps: Step[] = [
   },
 ]
 
-export default function BorrowStablecoin({
-  borrowLimit,
-  healthFactor,
-  onBorrow,
-}: BorrowStablecoinProps) {
+export default function BorrowStablecoin() {
   const [token, setToken] = useState("DAI")
   const [amount, setAmount] = useState("")
   const [sliderValue, setSliderValue] = useState(0)

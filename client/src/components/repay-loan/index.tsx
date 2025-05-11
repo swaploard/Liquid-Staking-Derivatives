@@ -1,33 +1,41 @@
 "use client"
 
 import { useState } from "react"
+import { ArrowUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowUp } from "lucide-react"
+import { vaultStore } from "@/store/valutStore"
+import { useRepayStableCoin } from "./hooks"
+import { Step } from "@/types"
+import Stepper from "@/components/stepper"
 
-interface RepayLoanProps {
-  borrowedAmount: number
-  onRepay: (amount: number) => void
-}
+const repayingSteps: Step[] = [
+  {
+    title: 'Go to your wallet to approve this transaction',
+    description: 'A blockchain transaction is required for repaying.',
+    status: 'pending' as const,
+  },
+  {
+    title: 'Borrowing stabelcoin',
+    description: 'Please stay on this page and keep this browser tab open.',
+    status: 'pending' as const,
+  },
+]
 
-export default function RepayLoan({ borrowedAmount, onRepay }: RepayLoanProps) {
+export default function RepayLoan() {
+  const { borrowedInfo } = vaultStore()
   const [token, setToken] = useState("DAI")
   const [amount, setAmount] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-
+  const [showStepper, setShowStepper] = useState(false);
+  const [steps, setSteps] = useState<Step[]>(repayingSteps);
+  const { handleRepayAmount } = useRepayStableCoin({setSteps, setShowStepper, setIsLoading})
+  
   const handleRepay = () => {
     if (!amount || Number.parseFloat(amount) <= 0) return
-
-    setIsLoading(true)
-
-    // Simulate transaction delay
-    setTimeout(() => {
-      onRepay(Number.parseFloat(amount))
-      setAmount("")
-      setIsLoading(false)
-    }, 1500)
+    handleRepayAmount(Number.parseFloat(amount))
   }
 
   return (
@@ -38,7 +46,7 @@ export default function RepayLoan({ borrowedAmount, onRepay }: RepayLoanProps) {
           Repay your borrowed stablecoins to reduce debt and improve health factor.
         </p>
       </div>
-
+      {showStepper && <Stepper steps={steps}/>}
       <div className="grid gap-4">
         <div className="grid gap-2">
           <Label htmlFor="repay-token">Select Token</Label>
@@ -56,7 +64,7 @@ export default function RepayLoan({ borrowedAmount, onRepay }: RepayLoanProps) {
         <div className="grid gap-2">
           <div className="flex justify-between">
             <Label htmlFor="repay-amount">Amount</Label>
-            <span className="text-sm text-muted-foreground">Debt: ${borrowedAmount.toLocaleString()}</span>
+            <span className="text-sm text-muted-foreground">Debt: ${borrowedInfo.borrowedAmount.toLocaleString()}</span>
           </div>
           <div className="relative">
             <Input
@@ -68,7 +76,7 @@ export default function RepayLoan({ borrowedAmount, onRepay }: RepayLoanProps) {
               className="pr-20"
               step="0.01"
               min="0"
-              max={borrowedAmount.toString()}
+              max={borrowedInfo.borrowedAmount.toString()}
             />
             <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-sm text-muted-foreground">
               {token}
@@ -77,7 +85,7 @@ export default function RepayLoan({ borrowedAmount, onRepay }: RepayLoanProps) {
           <div className="text-right">
             <button
               className="text-blue-600 hover:text-blue-700 text-xs"
-              onClick={() => setAmount(borrowedAmount.toFixed(2))}
+              onClick={() => setAmount(borrowedInfo.borrowedAmount.toFixed(2))}
             >
               REPAY ALL
             </button>
@@ -86,13 +94,13 @@ export default function RepayLoan({ borrowedAmount, onRepay }: RepayLoanProps) {
 
         <div className="flex items-center justify-between rounded-lg bg-muted p-3 text-sm">
           <div className="font-medium">Remaining Debt After Repayment</div>
-          <div>${Math.max(0, borrowedAmount - (Number.parseFloat(amount) || 0)).toLocaleString()}</div>
+          <div>${Math.max(0, borrowedInfo.borrowedAmount - (Number.parseFloat(amount) || 0)).toLocaleString()}</div>
         </div>
 
         <Button
           onClick={handleRepay}
           disabled={
-            !amount || Number.parseFloat(amount) <= 0 || Number.parseFloat(amount) > borrowedAmount || isLoading
+            !amount || Number.parseFloat(amount) <= 0 || Number.parseFloat(amount) > borrowedInfo.borrowedAmount || isLoading
           }
           className="w-full"
         >
