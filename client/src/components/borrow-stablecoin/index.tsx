@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { parseEther } from "viem";
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -36,11 +35,10 @@ export default function BorrowStablecoin() {
   const [steps, setSteps] = useState<Step[]>(borowingSteps);
   const { collateralData } = vaultStore()
   const { handleBorrowing, BorrowableLimitUSD, formattenBorrowedAmount } = useBorrowStablecoin({setSteps, setShowStepper, setIsLoading})
-
+ 
   const borrowedAmount = formattenBorrowedAmount;
   const borrowPercentage = Number(BorrowableLimitUSD) > 0 ? (borrowedAmount / Number(BorrowableLimitUSD)) * 100 : 0
 
-  // Calculate new health factor based on borrow amount
   const calculateNewHealthFactor = (additionalBorrow: number) => {
     if (collateralData.total === 0) return 10
     const totalBorrowed = borrowedAmount + additionalBorrow

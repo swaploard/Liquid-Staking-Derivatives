@@ -1,6 +1,6 @@
 import { useWriteContract, useAccount, useReadContract, usePublicClient } from "wagmi"
 import CollateralVault from "@/contracts/CollateralVault.json";
-import { Address, formatEther } from "viem";
+import { Address } from "viem";
 import { Step, StepStatus } from "@/types";
 import { useEffect, useState } from "react";
 const vaultContract = process.env.NEXT_PUBLIC_VAULT_CONTRACT_ADDRESS
