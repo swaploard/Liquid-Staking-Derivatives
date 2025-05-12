@@ -9,9 +9,11 @@ import { ArrowLeft } from "lucide-react"
 import HealthFactorIndicator from "@/components/health-factor-indicator"
 import { vaultStore } from "@/store/valutStore"
 import CollateralVault from "@/contracts/CollateralVault.json";
-
+import Stepper from "@/components/stepper"
+import { useWithdrawCollateral } from "./hooks"
 import { useAccount, useReadContract } from "wagmi"
 import { Address, parseEther } from "viem"
+import { Step } from "@/types"
 interface WithdrawCollateralProps {
   collateralData: {
     stETH: number
@@ -22,7 +24,18 @@ interface WithdrawCollateralProps {
   borrowedAmount: number
   onWithdraw: (token: string, amount: number) => void
 }
-
+const withdrawingSteps: Step[] = [
+  {
+    title: 'Go to your wallet to approve this transaction',
+    description: 'A blockchain transaction is required to withdraw.',
+    status: 'pending' as const,
+  },
+  {
+    title: 'Borrowing stabelcoin',
+    description: 'Please stay on this page and keep this browser tab open.',
+    status: 'pending' as const,
+  },
+]
 const bETHAddress = process.env.NEXT_PUBLIC_MOCK_BETH_ADDRESS
 const stETHAddress = process.env.NEXT_PUBLIC_MOCK_STETH_ADDRESS
 const rETHAddress = process.env.NEXT_PUBLIC_MOCK_RETH_ADDRESS
@@ -35,7 +48,10 @@ export default function WithdrawCollateral({
   const [token, setToken] = useState({ token: "", address: "" })
   const [amount, setAmount] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const { chainId } = useAccount();
+  const { chainId, address: userAddress } = useAccount();
+  const [showStepper, setShowStepper] = useState(false);
+  const [steps, setSteps] = useState<Step[]>(withdrawingSteps);
+  const { handleWithdrawCollateral } = useWithdrawCollateral({setSteps, setShowStepper, setIsLoading})
   
   const { data: borrowingAmountUSD } = useReadContract({
     address: vaultContract as Address,
@@ -44,7 +60,15 @@ export default function WithdrawCollateral({
     args: [token.address, parseEther(amount)],
     chainId: chainId
   })
-  
+
+  const { data: avilableCollateral } = useReadContract({
+    address: vaultContract as Address,
+    abi: CollateralVault.abi,
+    functionName: "getCollateralBalance",
+    args: [userAddress, token.address],
+    chainId: chainId,
+})
+
   const calculateNewHealthFactor = () => {
     if (collateralData.total === 0) return 10
     const totalBorrowed = borrowedInfo.borrowedAmount + (Number(borrowingAmountUSD) || 0)
@@ -57,15 +81,7 @@ export default function WithdrawCollateral({
 
   const handleWithdraw = () => {
     if (!amount || Number.parseFloat(amount) <= 0) return
-
-    setIsLoading(true)
-
-    // Simulate transaction delay
-    setTimeout(() => {
-      onWithdraw(token.token, Number.parseFloat(amount))
-      setAmount("")
-      setIsLoading(false)
-    }, 1500)
+    handleWithdrawCollateral(parseEther(amount), token.address)
   }
 
   const handleTokenChange = (value: string) => {
@@ -90,7 +106,7 @@ export default function WithdrawCollateral({
         <h3 className="text-lg font-medium">Withdraw Collateral</h3>
         <p className="text-sm text-muted-foreground">Withdraw your deposited collateral if your position allows it.</p>
       </div>
-
+      {showStepper && <Stepper steps={steps}/>}
       <div className="grid gap-4">
         <div className="grid gap-2">
           <Label htmlFor="withdraw-token">Select Token</Label>
@@ -130,12 +146,14 @@ export default function WithdrawCollateral({
               step="0.001"
               min="0"
               max={maxWithdrawable}
+              disabled={Number(avilableCollateral) <= 0 || token.address === ""}
             />
             <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-sm text-muted-foreground">
               {token.token}
             </div>
           </div>
-          <div className="text-right">
+          <div className="flex justify-between">
+            {Number(avilableCollateral) <= 0 ? <span className="text-xs text-red-700">No collteral avilable for the token.</span>: <span></span>}
             <button
               className="text-blue-600 hover:text-blue-700 text-xs"
               onClick={() => {
@@ -165,7 +183,9 @@ export default function WithdrawCollateral({
             Number.parseFloat(amount) <= 0 ||
             Number.parseFloat(amount) > maxWithdrawable ||
             isLoading ||
-            (borrowedInfo.borrowedAmount > 0 && newHealthFactor < 120)
+            (borrowedInfo.borrowedAmount > 0 && newHealthFactor < 120) ||
+            token.address === "" ||
+            borrowingAmountUSD === undefined
           }
           className="w-full"
         >
