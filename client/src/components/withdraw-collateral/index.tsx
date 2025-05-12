@@ -51,7 +51,7 @@ export default function WithdrawCollateral({
   const { chainId, address: userAddress } = useAccount();
   const [showStepper, setShowStepper] = useState(false);
   const [steps, setSteps] = useState<Step[]>(withdrawingSteps);
-  const { handleWithdrawCollateral } = useWithdrawCollateral({setSteps, setShowStepper, setIsLoading})
+  const { handleWithdrawCollateral } = useWithdrawCollateral({setSteps, setShowStepper, setIsLoading, setAmount})
   
   const { data: borrowingAmountUSD } = useReadContract({
     address: vaultContract as Address,
@@ -68,7 +68,7 @@ export default function WithdrawCollateral({
     args: [userAddress, token.address],
     chainId: chainId,
 })
-
+  
   const calculateNewHealthFactor = () => {
     if (collateralData.total === 0) return 10
     const totalBorrowed = borrowedInfo.borrowedAmount + (Number(borrowingAmountUSD) || 0)

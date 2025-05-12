@@ -2,7 +2,6 @@ import { useWriteContract, useAccount, useReadContract, usePublicClient } from "
 import CollateralVault from "@/contracts/CollateralVault.json";
 import { Address } from "viem";
 import { Step, StepStatus } from "@/types";
-import { useEffect, useState } from "react";
 
 const vaultContract = process.env.NEXT_PUBLIC_VAULT_CONTRACT_ADDRESS
 
@@ -10,8 +9,9 @@ interface useWithdrawCollateralProps {
     setSteps: React.Dispatch<React.SetStateAction<Step[]>>
     setShowStepper: React.Dispatch<React.SetStateAction<boolean>>
     setIsLoading: React.Dispatch<React.SetStateAction<boolean>>
+    setAmount: React.Dispatch<React.SetStateAction<string>>
 }
-export const useWithdrawCollateral = ({ setSteps, setShowStepper, setIsLoading }: useWithdrawCollateralProps) => {
+export const useWithdrawCollateral = ({ setSteps, setShowStepper, setIsLoading , setAmount}: useWithdrawCollateralProps) => {
     const publicClient = usePublicClient()
     const { writeContract } = useWriteContract()   
     const { chainId, address: userAddress } = useAccount();
@@ -44,14 +44,17 @@ export const useWithdrawCollateral = ({ setSteps, setShowStepper, setIsLoading }
                     updateStepStatus(1, "completed")
                     setShowStepper(false)
                     setIsLoading(false)
+                    setAmount("")
                 } else {
                     setShowStepper(false)
                     setIsLoading(false)
+                    setAmount("")
                 }
             },
             onError: (err) => {
                 setShowStepper(false)
                 setIsLoading(false)
+                setAmount("")
                 console.log(err)
             }
         }) 

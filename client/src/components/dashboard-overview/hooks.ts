@@ -131,7 +131,7 @@ export const useCollateralOverview = () => {
 }
 
 export const useBorrowOverview = () => {
-    const { setBorrowedInfo } = vaultStore()
+    const { setBorrowedInfo, collateralData } = vaultStore()
     const { address: userAddress, chainId } = useAccount();
 
     const { data: BorrowableLimit } = useReadContract({
@@ -159,7 +159,7 @@ export const useBorrowOverview = () => {
     })
 
 
-    const { data: helthFactor } = useReadContract({
+    const { data: helthFactor, refetch: refetchHelthFactor } = useReadContract({
         address: vaultContract as Address,
         abi: CollateralVault.abi,
         functionName: "calculateHealthFactor",
@@ -178,6 +178,10 @@ export const useBorrowOverview = () => {
             Number(borrowedAmount)
         )
     }, [formattenBorrowableLimit, bETHToUSD, helthFactor, borrowedAmount])
+
+    useEffect(()=> {
+        refetchHelthFactor()
+    },[collateralData])
 
     typeof formattenBorrowableLimit === "number" ? (formattenBorrowableLimit % 1 === 0 ? formattenBorrowableLimit.toFixed(0) : formattenBorrowableLimit.toFixed(4)) : 0
     return {
