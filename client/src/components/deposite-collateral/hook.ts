@@ -1,4 +1,4 @@
-import { useReadContract, useWriteContract, usePublicClient } from "wagmi";
+import { useWriteContract, usePublicClient } from "wagmi";
 import { Address } from "viem";
 import CollateralVault from "@/contracts/CollateralVault.json";
 import { Step, StepStatus } from "@/types";

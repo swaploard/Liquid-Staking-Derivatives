@@ -71,7 +71,7 @@ export const useCollateralOverview = () => {
         refetchstETHAddress()
         refetchrETHAddress()
         refetchbETHAddress()
-    }, [eventData])
+    }, [eventData, refetchbETHAddress, refetchrETHAddress, refetchstETHAddress])
 
     useEffect(() => {
         setCollateralData(
@@ -80,7 +80,7 @@ export const useCollateralOverview = () => {
             Number(formattenBETH),
             total
         )
-    }, [formattenSTETH, formattenRETH, formattenBETH, total])
+    }, [formattenSTETH, formattenRETH, formattenBETH, total, setCollateralData])
 
     useWatchContractEvent({
         address: vaultContract as Address,
@@ -177,11 +177,11 @@ export const useBorrowOverview = () => {
             Number(helthFactor),
             Number(borrowedAmount)
         )
-    }, [formattenBorrowableLimit, bETHToUSD, helthFactor, borrowedAmount])
+    }, [formattenBorrowableLimit, bETHToUSD, helthFactor, borrowedAmount, setBorrowedInfo])
 
     useEffect(()=> {
         refetchHelthFactor()
-    },[collateralData])
+    },[collateralData, refetchHelthFactor])
 
     typeof formattenBorrowableLimit === "number" ? (formattenBorrowableLimit % 1 === 0 ? formattenBorrowableLimit.toFixed(0) : formattenBorrowableLimit.toFixed(4)) : 0
     return {

@@ -6,22 +6,13 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "@redstone-finance/evm-connector/contracts/data-services/MainDemoConsumerBase.sol";
 
 interface IMintableERC20 is IERC20 {
     function mint(address to, uint256 amount) external;
     function burn(uint256 amount) external;
 }
 
-interface IRedstoneOracle {
-    function getPrice(bytes32 symbol) external view returns (uint256);
-    function getPrice(
-        bytes32 symbol,
-        uint256 timeout
-    ) external view returns (uint256);
-}
-
-contract CollateralVault is Ownable, MainDemoConsumerBase {
+contract CollateralVault is Ownable {
     using SafeERC20 for IERC20;
 
     struct Vault {
@@ -79,7 +70,7 @@ contract CollateralVault is Ownable, MainDemoConsumerBase {
     event CollateralTokenAdded(address indexed token);
     event CollateralTokenRemoved(address indexed token);
 
-    constructor(address _stablecoin) {
+    constructor(address _stablecoin) Ownable(msg.sender) {
         stablecoin = IMintableERC20(_stablecoin);
     }
 
@@ -211,10 +202,6 @@ contract CollateralVault is Ownable, MainDemoConsumerBase {
 
         if (chainlinkValue > 0) {
             return chainlinkValue;
-        }
-
-        if (config.useRedstoneFallback) {
-            return _getRedstonePrice(token, amount);
         }
 
         revert("Price unavailable");
@@ -419,20 +406,6 @@ contract CollateralVault is Ownable, MainDemoConsumerBase {
 
         liquidationThreshold = newLiquidationThreshold;
         liquidationBonus = newLiquidationBonus;
-    }
-
-    function _getRedstonePrice(
-        address token,
-        uint256 amount
-    ) private view returns (uint256) {
-        bytes32 symbol = tokenSymbols[token];
-        require(symbol != bytes32(0), "Symbol not configured");
-
-        uint256 price = getOracleNumericValueFromTxMsg(symbol);
-        require(price > 0, "Invalid Redstone price");
-
-        uint8 tokenDecimals = IERC20Metadata(token).decimals();
-        return (amount * price) / (10 ** tokenDecimals);
     }
 
     function configureOracle(

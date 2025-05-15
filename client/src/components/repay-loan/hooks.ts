@@ -1,11 +1,9 @@
-import { useWriteContract, useAccount, useReadContract, usePublicClient } from "wagmi"
+import { useWriteContract, useAccount, usePublicClient } from "wagmi"
 import CollateralVault from "@/contracts/CollateralVault.json";
-import { Address, formatEther } from "viem";
+import { Address } from "viem";
 import { Step, StepStatus } from "@/types";
-import { useEffect, useState } from "react";
 
 const vaultContract = process.env.NEXT_PUBLIC_VAULT_CONTRACT_ADDRESS
-const stETHAddress = process.env.NEXT_PUBLIC_MOCK_STETH_ADDRESS
 
 interface useRepayStableCoinProps {
     setSteps: React.Dispatch<React.SetStateAction<Step[]>>
@@ -16,7 +14,7 @@ interface useRepayStableCoinProps {
 export const useRepayStableCoin = ({ setSteps, setShowStepper, setIsLoading }: useRepayStableCoinProps) => {
     const { writeContract } = useWriteContract()
     const publicClient = usePublicClient()
-    const { chainId, address: userAddress } = useAccount()
+    const { chainId } = useAccount()
 
     const updateStepStatus = (stepIndex: number, newStatus: StepStatus) => {
         setSteps((prev) =>

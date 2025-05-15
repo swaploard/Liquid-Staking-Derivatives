@@ -1,7 +1,6 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Wallet } from "lucide-react"
 import { useState } from "react"
 import {
   Dialog,
@@ -17,13 +16,8 @@ interface WalletConnectProps {
   onConnect: () => void
 }
 
-export default function WalletConnect({ isConnected, onConnect }: WalletConnectProps) {
+export default function WalletConnect({ isConnected }: WalletConnectProps) {
   const [open, setOpen] = useState(false)
-
-  const handleConnect = () => {
-    onConnect()
-    setOpen(false)
-  }
 
   if (isConnected) {
     return (

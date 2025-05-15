@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { useConnectModal } from '@rainbow-me/rainbowkit';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent } from "@/components/ui/card"
@@ -9,7 +8,7 @@ import DepositCollateral from "@/components/deposite-collateral"
 import BorrowStablecoin from "@/components/borrow-stablecoin"
 import RepayLoan from "@/components/repay-loan"
 import WithdrawCollateral from "@/components/withdraw-collateral"
-import RiskBanner from "@/components/risk-banner"
+// import RiskBanner from "@/components/risk-banner"
 import { Button } from "@/components/ui/button"
 import { Wallet } from "lucide-react"
 import { useAccount } from 'wagmi'
@@ -19,60 +18,13 @@ export default function DashboardPage() {
   const { openConnectModal } = useConnectModal()
   const { isConnected, address } = useAccount()
   const { vaultExist, createVault } = useDashboard()
-  const [healthFactor, setHealthFactor] = useState(2.5)
-  const [collateralValue, setCollateralValue] = useState(10000)
-  const [borrowedAmount, setBorrowedAmount] = useState(3000)
-  const [collateralBalances, setCollateralBalances] = useState({
-    stETH: 2.5,
-    rETH: 1.2,
-    bETH: 0.8,
-  })
 
-  // Mock function to simulate wallet connection
   const handleConnect = () => {
     if (!isConnected && openConnectModal) {
       openConnectModal();
     }
   }
 
-  // Calculate borrow limit (75% of collateral value)
-  const borrowLimit = collateralValue * 0.75
-
-  // Update health factor when borrowing or repaying
-  const updateHealthFactor = (newBorrowedAmount: number) => {
-    if (newBorrowedAmount === 0) {
-      setHealthFactor(10)
-    } else {
-      const newHealthFactor = (borrowLimit / newBorrowedAmount) * 1.5
-      setHealthFactor(Number.parseFloat(newHealthFactor.toFixed(2)))
-    }
-    setBorrowedAmount(newBorrowedAmount)
-  }
-
-  // Update collateral value when depositing or withdrawing
-  const updateCollateralValue = (newCollateralValue: number) => {
-    setCollateralValue(newCollateralValue)
-    // Recalculate health factor
-    if (borrowedAmount > 0) {
-      const newBorrowLimit = newCollateralValue * 0.75
-      const newHealthFactor = (newBorrowLimit / borrowedAmount) * 1.5
-      setHealthFactor(Number.parseFloat(newHealthFactor.toFixed(2)))
-    }
-  }
-
-  // Update collateral balances
-  const updateCollateralBalance = (token: string, amount: number, isDeposit: boolean) => {
-    setCollateralBalances((prev) => {
-      const newBalances = { ...prev }
-      if (isDeposit) {
-        newBalances[token as keyof typeof collateralBalances] += amount
-      } else {
-        newBalances[token as keyof typeof collateralBalances] -= amount
-      }
-      return newBalances
-    })
-  }
-  
   const handleCreateVault = async () => {
     await createVault()
   }
@@ -97,14 +49,9 @@ export default function DashboardPage() {
       <main className="container mx-auto px-4 py-8">
         {isConnected && vaultExist ? (
           <>
-            {healthFactor < 1.2 && <RiskBanner healthFactor={healthFactor} />}
+            {/* {healthFactor < 1.2 && <RiskBanner healthFactor={healthFactor} />} */}
 
-            <DashboardOverview
-              collateralBalances={collateralBalances}
-              borrowLimit={borrowLimit}
-              borrowedAmount={borrowedAmount}
-              healthFactor={healthFactor}
-            />
+            <DashboardOverview />
 
             <Tabs defaultValue="deposit" className="mt-8">
               <TabsList className="grid grid-cols-4 mb-8">
@@ -125,13 +72,7 @@ export default function DashboardPage() {
               <TabsContent value="borrow">
                 <Card>
                   <CardContent className="pt-6">
-                    <BorrowStablecoin
-                      borrowLimit={borrowLimit}
-                      healthFactor={healthFactor}
-                      onBorrow={(amount) => {
-                        updateHealthFactor(borrowedAmount + amount)
-                      }}
-                    />
+                    <BorrowStablecoin />
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -140,11 +81,6 @@ export default function DashboardPage() {
                 <Card>
                   <CardContent className="pt-6">
                     <RepayLoan
-                      borrowedAmount={borrowedAmount}
-                      onRepay={(amount) => {
-                        const newBorrowedAmount = Math.max(0, borrowedAmount - amount)
-                        updateHealthFactor(newBorrowedAmount)
-                      }}
                     />
                   </CardContent>
                 </Card>
@@ -153,16 +89,7 @@ export default function DashboardPage() {
               <TabsContent value="withdraw">
                 <Card>
                   <CardContent className="pt-6">
-                    <WithdrawCollateral
-                      collateralBalances={collateralBalances}
-                      healthFactor={healthFactor}
-                      borrowedAmount={borrowedAmount}
-                      onWithdraw={(token, amount) => {
-                        const tokenValue = amount * (token === "stETH" ? 2000 : token === "rETH" ? 2200 : 1900)
-                        updateCollateralValue(collateralValue - tokenValue)
-                        updateCollateralBalance(token, amount, false)
-                      }}
-                    />
+                    <WithdrawCollateral />
                   </CardContent>
                 </Card>
               </TabsContent>

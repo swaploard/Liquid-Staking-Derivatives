@@ -1,4 +1,4 @@
-import { useWriteContract, useAccount, useReadContract, usePublicClient } from "wagmi"
+import { useWriteContract, useAccount, usePublicClient } from "wagmi"
 import CollateralVault from "@/contracts/CollateralVault.json";
 import { Address } from "viem";
 import { Step, StepStatus } from "@/types";
@@ -14,7 +14,7 @@ interface useWithdrawCollateralProps {
 export const useWithdrawCollateral = ({ setSteps, setShowStepper, setIsLoading , setAmount}: useWithdrawCollateralProps) => {
     const publicClient = usePublicClient()
     const { writeContract } = useWriteContract()   
-    const { chainId, address: userAddress } = useAccount();
+    const { chainId } = useAccount();
 
     const updateStepStatus = (stepIndex: number, newStatus: StepStatus) => {
         setSteps((prev) =>

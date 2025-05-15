@@ -14,16 +14,7 @@ import { useWithdrawCollateral } from "./hooks"
 import { useAccount, useReadContract } from "wagmi"
 import { Address, parseEther } from "viem"
 import { Step } from "@/types"
-interface WithdrawCollateralProps {
-  collateralData: {
-    stETH: number
-    rETH: number
-    bETH: number
-  }
-  healthFactor: number
-  borrowedAmount: number
-  onWithdraw: (token: string, amount: number) => void
-}
+
 const withdrawingSteps: Step[] = [
   {
     title: 'Go to your wallet to approve this transaction',
@@ -41,9 +32,7 @@ const stETHAddress = process.env.NEXT_PUBLIC_MOCK_STETH_ADDRESS
 const rETHAddress = process.env.NEXT_PUBLIC_MOCK_RETH_ADDRESS
 const vaultContract = process.env.NEXT_PUBLIC_VAULT_CONTRACT_ADDRESS
 
-export default function WithdrawCollateral({
-  onWithdraw,
-}: WithdrawCollateralProps) {
+export default function WithdrawCollateral() {
   const { collateralData, borrowedInfo } = vaultStore()
   const [token, setToken] = useState({ token: "", address: "" })
   const [amount, setAmount] = useState("")
